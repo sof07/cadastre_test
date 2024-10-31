@@ -1,0 +1,13 @@
+from pydantic import BaseModel, validator, root_validator, Extra, Field
+
+
+class CadastreBase(BaseModel): ...
+
+
+class CadastreUpdate(CadastreBase): ...
+
+
+class CadastreCreate(CadastreBase): ...
+
+
+class CadastreDB(CadastreBase): ...
