@@ -1,13 +1,12 @@
-from sqlalchemy import Column, DateTime, String, func, Float
+from sqlalchemy import Column, DateTime, String, func, Float, Boolean
 
 from app.core.db import Base
 
 
 class Cadastre(Base):
-    cadastral_number = Column(
+    cadastre_number = Column(
         String,
         name='Кадастровый номер',
-        max_length=20,
         nullable=False,
     )
     latitude = Column(
@@ -21,6 +20,7 @@ class Cadastre(Base):
         nullable=False,
     )
     created_at = Column(DateTime, server_default=func.now())
+    server_response = Column(Boolean)
 
     def __repr__(self):
         return f'Кадастровый номер {self.cadastral_number}'
