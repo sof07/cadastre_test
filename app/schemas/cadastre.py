@@ -1,14 +1,27 @@
-from pydantic import BaseModel, validator, root_validator, Extra, Field
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 
 class CadastreBase(BaseModel):
-    cadastre_number: str = Field(example='00:00:0000:0000')
-    latitude: float = Field(example=50.05681)
-    longitude: float = Field(example=50.05681)
-
-
-class CadastreUpdate(CadastreBase): ...
+    cadastre_number: str = Field(
+        pattern=r'^\d{2}:\d{2}:\d{6,7}:\d{2}(:\d:\d)?$',
+        example='00:00:0000000:00',
+        description="""Кадастровый номер формат: ХХ:ХХ:ХХХХХХХ:ХХ:Х:Х 
+        или  ХХ:ХХ:ХХХХХХХ:ХХ""",
+        title='Кадастровый номер',
+    )
+    latitude: float = Field(
+        ge=-90,
+        le=90,
+        example=50.05681,
+        title='Широта',
+    )
+    longitude: float = Field(
+        ge=-180,
+        le=180,
+        example=50.05681,
+        title='Долгота',
+    )
 
 
 class CadastreCreate(CadastreBase):
