@@ -1,0 +1,6 @@
+APP_TITLE=Сервис приема запросов кадастрового номера
+# DATABASE_URL=sqlite+aiosqlite:///./fastapi.db
+DATABASE_URL=postgresql+asyncpg://postre:postre@db:5432/cadastre_db
+POSTGRES_USER=postre
+POSTGRES_PASSWORD=postre
+POSTGRES_DB=cadastre_db

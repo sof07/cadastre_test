@@ -1,18 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.cadastre import CadastreBase, CadastreDB, CadastreCreate
-
-from app.core.db import get_async_session
 import asyncio
-from app.crud.cadastre import cadastre_crud
-from app.api.validators import check_cadastre_number
-
-import httpx
 import random
 
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.validators import check_cadastre_number
+from app.core.db import get_async_session
+from app.crud.cadastre import cadastre_crud
+from app.schemas.cadastre import CadastreBase, CadastreCreate, CadastreDB
 
 router = APIRouter()
-URL = 'http://localhost:8000/result'
+SERVER_URL = 'http://localhost:8000/result'
+SERVER_RESPONSE_WAITING_TIME = 60.0
 
 
 @router.post(
@@ -23,9 +23,10 @@ URL = 'http://localhost:8000/result'
 async def create_cadastre(
     cadastre: CadastreBase,
     session: AsyncSession = Depends(get_async_session),
-) -> CadastreDB:
-    response = await response_server(URL, **cadastre.dict())
-    cadastre = CadastreCreate(**cadastre.dict(), **response)
+):
+    response = await response_server(SERVER_URL, **cadastre.dict())
+    server_response_dict = {'server_response': response}
+    cadastre = CadastreCreate(**cadastre.dict(), **server_response_dict)
     return await cadastre_crud.create(cadastre, session)
 
 
@@ -35,12 +36,17 @@ async def create_cadastre(
 )
 async def check_ping():
     async with httpx.AsyncClient() as client:
-        response = await client.get('http://localhost:8000/result')
+        try:
+            response = await client.get(SERVER_URL)
+        except httpx.ReadTimeout:
+            raise HTTPException(
+                status_code=504, detail='Время ожидания ответа от сервера истекло.'
+            )
         if response.status_code != 200:
             raise HTTPException(
                 status_code=response.status_code, detail='Сервер не готов'
             )
-        return 'Сервер готов'
+        return status.HTTP_200_OK
 
 
 @router.get(
@@ -70,20 +76,39 @@ async def get_history_from_cadastre_number(
     )
 
 
-@router.get('/result')
-async def server() -> dict:
+@router.post('/result')
+async def server(params: CadastreBase | None = None) -> bool:
     await asyncio.sleep(random.randint(1, 60))
     response = random.choice([True, False])
-    return {'server_response': response}
+    return response
 
 
-async def response_server(url, **kwargs) -> dict:
-    url = url
+@router.get(
+    '/result',
+    include_in_schema=False,
+)
+async def response() -> int:
+    return status.HTTP_200_OK
+
+
+async def response_server(server_url, **kwargs) -> dict:
+    """
+    Отправляет асинхронный POST-запрос на указанный сервер.
+
+    :param server_url: URL сервера, к которому будет отправлен запрос.
+    :param kwargs: Дополнительные параметры, которые будут отправлены в теле запроса в формате JSON.
+    :return: Словарь, содержащий данные, полученные от сервера (в формате JSON).
+
+    :raises HTTPException: Исключение возникает, если время ожидания ответа истекает (504) или если
+                          сервер возвращает код статуса, отличный от 200.
+    """
+    url = server_url
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(
+            response = await client.post(
                 url,
-                timeout=60.0,
+                json=kwargs,
+                timeout=SERVER_RESPONSE_WAITING_TIME,
             )
         except httpx.ReadTimeout:
             raise HTTPException(
@@ -94,4 +119,5 @@ async def response_server(url, **kwargs) -> dict:
                 status_code=response.status_code, detail='Ошибка при получении данных'
             )
         item_data = response.json()
+
         return item_data
